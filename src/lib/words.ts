@@ -1,0 +1,62 @@
+const ADJECTIVES = [
+  'brave', 'bright', 'calm', 'clever', 'cool', 'crisp', 'daring', 'eager',
+  'fair', 'fast', 'fierce', 'fine', 'fleet', 'fresh', 'glad', 'golden',
+  'grand', 'happy', 'hardy', 'keen', 'kind', 'lively', 'lucky', 'merry',
+  'mighty', 'noble', 'proud', 'quick', 'quiet', 'rapid', 'sharp', 'silent',
+  'sleek', 'smart', 'smooth', 'snowy', 'soft', 'solid', 'steady', 'still',
+  'strong', 'sunny', 'sure', 'swift', 'tall', 'true', 'vivid', 'warm',
+  'wild', 'wise', 'witty', 'young', 'bold', 'clear', 'deep', 'gentle',
+  'great', 'humble', 'jade', 'jolly', 'lean', 'light', 'lunar', 'neat',
+  'olive', 'open', 'pale', 'plain', 'prime', 'rare', 'rich', 'royal',
+  'rustic', 'sage', 'serene', 'silver', 'simple', 'spry', 'stark', 'stone',
+  'tidal', 'tiny', 'tough', 'vast', 'violet', 'woven', 'zesty', 'agile',
+  'amber', 'aqua', 'azure', 'birch', 'blaze', 'bloom', 'cedar', 'coral',
+  'cosmic', 'crystal', 'dawn', 'dusk', 'ember', 'fern', 'flame', 'flint',
+  'frost', 'gale', 'gleam', 'grove', 'haze', 'iron', 'ivory', 'maple',
+  'marsh', 'misty', 'moss', 'north', 'ocean', 'pearl', 'pine', 'plum',
+  'polar', 'rain', 'river', 'rose', 'ruby', 'sand', 'silk', 'solar',
+  'spark', 'steel', 'storm', 'terra', 'thorn', 'thunder', 'timber', 'velvet',
+  'wave', 'wind', 'winter', 'aspen', 'berry', 'cloud', 'crest', 'delta',
+  'drift', 'echo', 'field', 'glow', 'harbor', 'hollow', 'lake', 'meadow',
+  'mist', 'moon', 'peak', 'pond', 'reef', 'ridge', 'shade', 'shore',
+  'sky', 'snow', 'spring', 'star', 'stone', 'stream', 'summit', 'tide',
+  'trail', 'vale', 'cliff', 'cove', 'dale', 'dune', 'falls', 'ford',
+  'glen', 'haven', 'heath', 'hill', 'isle', 'knoll', 'ledge', 'loch',
+  'mesa', 'moor', 'oasis', 'pass', 'plain', 'prairie', 'rapid', 'shoal',
+  'slope', 'sound', 'steppe', 'swamp', 'valley', 'marsh', 'canyon', 'bay',
+];
+
+const NOUNS = [
+  'tiger', 'eagle', 'falcon', 'hawk', 'wolf', 'bear', 'deer', 'fox',
+  'lion', 'lynx', 'otter', 'owl', 'panda', 'raven', 'seal', 'shark',
+  'crane', 'dove', 'finch', 'heron', 'horse', 'whale', 'robin', 'swan',
+  'bison', 'cobra', 'coral', 'drake', 'elk', 'frog', 'gecko', 'hare',
+  'ibis', 'jay', 'kite', 'lark', 'moth', 'newt', 'oriole', 'pike',
+  'quail', 'ram', 'stork', 'trout', 'viper', 'wren', 'yak', 'zebra',
+  'badger', 'bobcat', 'cedar', 'condor', 'coyote', 'egret', 'ferret',
+  'goose', 'grouse', 'iguana', 'jackal', 'lemur', 'marten', 'moose',
+  'osprey', 'parrot', 'puma', 'salmon', 'swift', 'turtle', 'walrus',
+  'mountain', 'river', 'forest', 'ocean', 'desert', 'island', 'valley',
+  'canyon', 'meadow', 'summit', 'glacier', 'harbor', 'lagoon', 'prairie',
+  'reef', 'ridge', 'stream', 'thunder', 'breeze', 'cloud', 'comet',
+  'crystal', 'dawn', 'dusk', 'ember', 'flame', 'frost', 'gale',
+  'horizon', 'meteor', 'mist', 'moon', 'orbit', 'rain', 'shadow',
+  'spark', 'star', 'stone', 'storm', 'sun', 'tide', 'wave', 'wind',
+  'anvil', 'arrow', 'beacon', 'blade', 'bridge', 'castle', 'crown',
+  'forge', 'garden', 'hearth', 'lantern', 'mantle', 'mirror', 'pillar',
+  'prism', 'quartz', 'shield', 'sigil', 'spire', 'temple', 'tower',
+  'vault', 'anchor', 'atlas', 'banner', 'cipher', 'compass', 'delta',
+  'echo', 'flare', 'helm', 'index', 'nexus', 'origin', 'pulse',
+  'quest', 'relay', 'scope', 'signal', 'surge', 'trail', 'unity',
+  'vertex', 'zenith', 'arch', 'basin', 'bluff', 'brook', 'cape',
+  'cliff', 'crest', 'dale', 'dell', 'dune', 'falls', 'fen', 'fjord',
+  'ford', 'glen', 'grove', 'gulch', 'haven', 'heath', 'hill', 'hollow',
+  'isle', 'knoll', 'ledge', 'loch', 'mesa', 'moor', 'oasis', 'pass',
+  'peak', 'pine', 'pond', 'shoal', 'shore', 'slope', 'sound', 'spring',
+];
+
+export function generateSlug(): string {
+  const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+  const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
+  return `${adj}-${noun}`;
+}
