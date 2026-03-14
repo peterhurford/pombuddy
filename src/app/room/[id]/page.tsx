@@ -22,18 +22,26 @@ function getBreakDuration(mode: string): number {
 function playNotificationSound() {
   try {
     const ctx = new AudioContext();
-    const oscillator = ctx.createOscillator();
-    const gain = ctx.createGain();
-    oscillator.connect(gain);
-    gain.connect(ctx.destination);
-    oscillator.frequency.value = 830;
-    oscillator.type = 'sine';
-    gain.gain.value = 0.3;
-    oscillator.start();
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-    oscillator.stop(ctx.currentTime + 0.5);
+    const notes = [830, 1000, 830, 1000, 830];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      const startTime = ctx.currentTime + i * 0.25;
+      gain.gain.setValueAtTime(0.4, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.2);
+      osc.start(startTime);
+      osc.stop(startTime + 0.2);
+    });
   } catch {
     // Audio not available
+  }
+  // Browser notification
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    new Notification('Pombuddy', { body: 'Timer is up!' });
   }
 }
 
@@ -45,8 +53,16 @@ export default function RoomPage() {
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentCycleId, setCurrentCycleId] = useState<string | null>(null);
+  const [currentTarget, setCurrentTarget] = useState<string | null>(null);
   const [preWorkDone, setPreWorkDone] = useState(false);
   const timerEndedRef = useRef(false);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   // Reset preWorkDone when a new cycle starts
   useEffect(() => {
@@ -151,6 +167,7 @@ export default function RoomPage() {
       if (data) setCurrentCycleId(data.id);
 
       // Mark local pre-work as done — do NOT auto-start timer
+      setCurrentTarget(answers.target);
       setPreWorkDone(true);
     },
     [roomId, room?.current_cycle]
@@ -168,7 +185,14 @@ export default function RoomPage() {
   }, [room?.mode, updateRoom]);
 
   // Late joiner condensed pre-work — no DB write, just local reflection
-  const handleCondensedPreWorkComplete = useCallback(() => {
+  const handleCondensedPreWorkComplete = useCallback((answers: {
+    target: string;
+    environment_check: string;
+    first_step: string;
+    success_criteria: string;
+    failure_risks: string;
+  }) => {
+    setCurrentTarget(answers.target);
     setPreWorkDone(true);
   }, []);
 
@@ -252,6 +276,7 @@ export default function RoomPage() {
       paused_remaining: null,
     });
     setCurrentCycleId(null);
+    setCurrentTarget(null);
   }, [updateRoom, room?.current_cycle]);
 
   if (loading) {
@@ -363,6 +388,7 @@ export default function RoomPage() {
             pausedRemaining={room.paused_remaining}
             onPause={handlePause}
             onResume={handleResume}
+            target={currentTarget}
           />
         )}
 

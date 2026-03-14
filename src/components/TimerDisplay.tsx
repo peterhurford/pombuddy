@@ -11,6 +11,7 @@ interface TimerDisplayProps {
   pausedRemaining: number | null;
   onPause: () => void;
   onResume: () => void;
+  target?: string | null;
 }
 
 export default function TimerDisplay({
@@ -22,9 +23,11 @@ export default function TimerDisplay({
   pausedRemaining,
   onPause,
   onResume,
+  target,
 }: TimerDisplayProps) {
   const [remaining, setRemaining] = useState(pausedRemaining ?? timerDuration ?? 0);
   const [hasEnded, setHasEnded] = useState(false);
+  const [flashing, setFlashing] = useState(false);
 
   useEffect(() => {
     if (paused) {
@@ -45,6 +48,8 @@ export default function TimerDisplay({
 
       if (left === 0 && !hasEnded) {
         setHasEnded(true);
+        setFlashing(true);
+        setTimeout(() => setFlashing(false), 3000);
         onTimerEnd();
       }
     }, 200);
@@ -65,6 +70,20 @@ export default function TimerDisplay({
 
   return (
     <div className="flex flex-col items-center animate-fade-in">
+      {/* Screen flash overlay */}
+      {flashing && (
+        <div className="fixed inset-0 z-50 pointer-events-none animate-timer-flash bg-accent/20" />
+      )}
+
+      {/* Target display */}
+      {target && (
+        <div className="mb-6 text-center max-w-sm">
+          <p className="text-foreground/50 text-sm leading-relaxed">
+            {target}
+          </p>
+        </div>
+      )}
+
       <div className={`relative w-80 h-80 sm:w-96 sm:h-96 ${paused ? '' : 'animate-pulse-glow'}`}>
         <svg className="w-full h-full -rotate-90" viewBox="0 0 320 320">
           {/* Background track */}
