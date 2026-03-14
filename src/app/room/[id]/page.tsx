@@ -279,7 +279,7 @@ export default function RoomPage() {
       <div className="w-full max-w-lg flex items-center justify-between mb-10">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            <span className="text-accent">Pom</span>buddy
+            <span className="mr-1.5">🍅</span><span className="text-accent">Pom</span>buddy
           </h1>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-foreground/30 text-xs font-medium uppercase tracking-[0.1em]">

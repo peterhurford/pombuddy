@@ -50,6 +50,7 @@ export default function Home() {
       </div>
       <div className="max-w-md w-full animate-fade-in">
         <div className="text-center mb-14">
+          <div className="text-5xl mb-5">🍅</div>
           <h1 className="text-6xl font-bold mb-4 tracking-tight">
             <span className="text-accent">Pom</span>buddy
           </h1>

@@ -5,22 +5,22 @@
 [data-theme="dark"] {
   --background: #0a0a1a;
   --foreground: #e2e8f0;
-  --accent: #f97316;
-  --accent-light: #fb923c;
+  --accent: #e53e3e;
+  --accent-light: #f56565;
   --card-bg: #141428;
   --card-border: #252545;
-  --glow: rgba(249, 115, 22, 0.15);
+  --glow: rgba(229, 62, 62, 0.15);
 }
 
 /* Light theme */
 [data-theme="light"] {
   --background: #f8f9fc;
   --foreground: #1a1a2e;
-  --accent: #ea580c;
-  --accent-light: #f97316;
+  --accent: #dc2626;
+  --accent-light: #ef4444;
   --card-bg: #ffffff;
   --card-border: #e2e5eb;
-  --glow: rgba(234, 88, 12, 0.1);
+  --glow: rgba(220, 38, 38, 0.1);
 }
 
 @theme inline {
