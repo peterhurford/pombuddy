@@ -3,12 +3,13 @@
 /* Dark theme (default) */
 :root,
 [data-theme="dark"] {
-  --background: #0f0f23;
+  --background: #0a0a1a;
   --foreground: #e2e8f0;
   --accent: #f97316;
   --accent-light: #fb923c;
-  --card-bg: #1a1a2e;
-  --card-border: #2a2a4a;
+  --card-bg: #141428;
+  --card-border: #252545;
+  --glow: rgba(249, 115, 22, 0.15);
 }
 
 /* Light theme */
@@ -19,6 +20,7 @@
   --accent-light: #f97316;
   --card-bg: #ffffff;
   --card-border: #e2e5eb;
+  --glow: rgba(234, 88, 12, 0.1);
 }
 
 @theme inline {
@@ -28,6 +30,7 @@
   --color-accent-light: var(--accent-light);
   --color-card-bg: var(--card-bg);
   --color-card-border: var(--card-border);
+  --color-glow: var(--glow);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -49,10 +52,28 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes pulse-glow {
+  0%, 100% { filter: drop-shadow(0 0 8px var(--glow)); }
+  50% { filter: drop-shadow(0 0 24px var(--glow)); }
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
 }
 
 .animate-slide-up {
   animation: slide-up 0.4s ease-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
 }

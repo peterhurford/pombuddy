@@ -49,18 +49,18 @@ export default function Home() {
         <ThemeToggle />
       </div>
       <div className="max-w-md w-full animate-fade-in">
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold mb-3 tracking-tight">
+        <div className="text-center mb-14">
+          <h1 className="text-6xl font-bold mb-4 tracking-tight">
             <span className="text-accent">Pom</span>buddy
           </h1>
-          <p className="text-foreground/60 text-lg">
+          <p className="text-foreground/40 text-lg">
             Shared Pomodoro timer with structured reflections
           </p>
         </div>
 
-        <div className="bg-card-bg border border-card-border rounded-2xl p-8 space-y-8">
+        <div className="bg-card-bg border border-card-border rounded-2xl p-8 shadow-lg shadow-black/5 space-y-8">
           <div>
-            <label className="block text-sm font-medium text-foreground/70 mb-3">
+            <label className="block text-xs font-medium text-foreground/30 mb-3 uppercase tracking-[0.15em]">
               Timer Mode
             </label>
             <div className="grid grid-cols-2 gap-3">
@@ -68,15 +68,15 @@ export default function Home() {
                 <button
                   key={m}
                   onClick={() => setMode(m)}
-                  className={`py-4 px-6 rounded-xl text-center transition-all duration-200 border ${
+                  className={`py-5 px-6 rounded-xl text-center transition-all duration-200 border ${
                     mode === m
-                      ? 'bg-accent/15 border-accent text-accent font-semibold'
-                      : 'bg-card-bg border-card-border text-foreground/60 hover:border-foreground/30'
+                      ? 'bg-accent/10 border-accent/40 text-accent font-semibold shadow-sm shadow-accent/5'
+                      : 'bg-background/50 border-card-border text-foreground/50 hover:border-foreground/20 hover:text-foreground/70'
                   }`}
                 >
-                  <div className="text-2xl font-bold">{m.split('/')[0]}</div>
-                  <div className="text-xs mt-1 opacity-70">
-                    {m.split('/')[0]} min work / {m.split('/')[1]} min break
+                  <div className="text-3xl font-bold">{m.split('/')[0]}</div>
+                  <div className="text-xs mt-1.5 opacity-60">
+                    {m.split('/')[0]}min work / {m.split('/')[1]}min break
                   </div>
                 </button>
               ))}
@@ -86,13 +86,13 @@ export default function Home() {
           <button
             onClick={createRoom}
             disabled={creating}
-            className="w-full py-4 bg-accent hover:bg-accent-light text-white font-semibold rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-lg"
+            className="w-full py-4 bg-accent hover:bg-accent-light text-white font-semibold rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-lg active:scale-[0.98]"
           >
             {creating ? 'Creating...' : 'Create Room'}
           </button>
         </div>
 
-        <p className="text-center text-foreground/30 text-sm mt-8">
+        <p className="text-center text-foreground/20 text-sm mt-10">
           Create a room and share the link with your co-working buddies
         </p>
       </div>

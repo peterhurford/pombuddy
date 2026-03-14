@@ -257,7 +257,7 @@ export default function RoomPage() {
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <div className="text-foreground/40">Loading...</div>
+        <div className="text-foreground/20 text-sm tracking-widest uppercase animate-pulse-subtle">Loading</div>
       </main>
     );
   }
@@ -274,19 +274,19 @@ export default function RoomPage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center p-4 pt-8">
+    <main className="min-h-screen flex flex-col items-center p-4 pt-6 sm:pt-8">
       {/* Header */}
-      <div className="w-full max-w-lg flex items-center justify-between mb-8">
+      <div className="w-full max-w-lg flex items-center justify-between mb-10">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
             <span className="text-accent">Pom</span>buddy
           </h1>
-          <div className="flex items-center gap-3 mt-1">
-            <span className="text-foreground/40 text-sm">
-              {room.mode} mode
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-foreground/30 text-xs font-medium uppercase tracking-[0.1em]">
+              {room.mode}
             </span>
-            <span className="text-foreground/20">|</span>
-            <span className="text-foreground/40 text-sm">
+            <span className="text-foreground/15">·</span>
+            <span className="text-foreground/30 text-xs font-medium uppercase tracking-[0.1em]">
               Cycle {room.current_cycle}
             </span>
           </div>
@@ -302,18 +302,18 @@ export default function RoomPage() {
         {/* LOBBY */}
         {room.state === 'lobby' && (
           <div className="text-center animate-fade-in">
-            <div className="mb-8">
-              <div className="text-6xl mb-4">
+            <div className="mb-10">
+              <div className="text-8xl font-bold font-mono tracking-tight mb-3">
                 {room.mode === '25/5' ? '25' : '50'}
-                <span className="text-foreground/30 text-3xl ml-1">min</span>
+                <span className="text-foreground/20 text-4xl ml-1 font-sans font-normal">min</span>
               </div>
-              <p className="text-foreground/50">
+              <p className="text-foreground/30 text-sm">
                 {room.mode === '25/5' ? '25 min work / 5 min break' : '50 min work / 10 min break'}
               </p>
             </div>
             <button
               onClick={handleStartPreWork}
-              className="px-8 py-4 bg-accent hover:bg-accent-light text-white font-semibold rounded-xl transition-colors text-lg"
+              className="px-10 py-4 bg-accent hover:bg-accent-light text-white font-semibold rounded-xl transition-all duration-200 text-lg active:scale-[0.98]"
             >
               Start First Cycle
             </button>
@@ -327,20 +327,20 @@ export default function RoomPage() {
 
         {room.state === 'pre_work' && preWorkDone && (
           <div className="text-center animate-fade-in">
-            <div className="mb-6">
-              <div className="w-16 h-16 rounded-full bg-accent/15 flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="mb-8">
+              <div className="w-20 h-20 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center mx-auto mb-5">
+                <svg className="w-9 h-9 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Pre-work complete</h3>
-              <p className="text-foreground/50">
-                Ready when you are. Start the timer when everyone is set.
+              <h3 className="text-2xl font-semibold mb-2">Ready to go</h3>
+              <p className="text-foreground/35 text-sm">
+                Start the timer when everyone is set
               </p>
             </div>
             <button
               onClick={handleStartTimer}
-              className="px-8 py-4 bg-accent hover:bg-accent-light text-white font-semibold rounded-xl transition-colors text-lg"
+              className="px-10 py-4 bg-accent hover:bg-accent-light text-white font-semibold rounded-xl transition-all duration-200 text-lg active:scale-[0.98]"
             >
               Start Timer
             </button>
