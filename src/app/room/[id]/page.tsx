@@ -213,35 +213,49 @@ export default function RoomPage() {
     return () => clearInterval(interval);
   }, [participantId]);
 
-  // Cleanup: best-effort delete on unload
+  // Verify stored participant exists in DB on mount; re-create if missing
   useEffect(() => {
     if (!participantId) return;
 
-    const handleUnload = () => {
-      navigator.sendBeacon?.(
-        // sendBeacon doesn't work with Supabase client, so we do a best-effort delete
-        // The stale detection (opacity dim) handles cases where this fails
-        ''
-      );
-      // Use supabase delete as best-effort
-      supabase
+    async function verifyParticipant() {
+      const { data } = await supabase
         .from('participants')
-        .delete()
+        .select('id')
         .eq('id', participantId)
-        .then();
-    };
+        .single();
 
-    window.addEventListener('beforeunload', handleUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleUnload);
-      // Also try to delete on React unmount
-      supabase
-        .from('participants')
-        .delete()
-        .eq('id', participantId)
-        .then();
-    };
-  }, [participantId]);
+      if (data) {
+        // Still exists — refresh heartbeat so we appear active
+        await supabase
+          .from('participants')
+          .update({ last_seen_at: new Date().toISOString() })
+          .eq('id', participantId);
+      } else {
+        // Record was deleted — try to re-create with stored name
+        const storedName = localStorage.getItem(`pombuddy-name-${roomId}`);
+        if (storedName) {
+          const existingEmojis = participants.map((p) => p.emoji);
+          const emoji = pickEmoji(existingEmojis);
+          const { data: newP } = await supabase
+            .from('participants')
+            .insert({ room_id: roomId, name: storedName, emoji })
+            .select('id')
+            .single();
+          if (newP) {
+            setParticipantId(newP.id);
+            localStorage.setItem(`pombuddy-participant-${roomId}`, newP.id);
+          }
+        } else {
+          // No stored name — clear ID so name entry shows
+          setParticipantId(null);
+          localStorage.removeItem(`pombuddy-participant-${roomId}`);
+        }
+      }
+    }
+
+    verifyParticipant();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handle name submission: create participant
   const handleNameSubmit = useCallback(
@@ -262,6 +276,7 @@ export default function RoomPage() {
       if (data) {
         setParticipantId(data.id);
         localStorage.setItem(`pombuddy-participant-${roomId}`, data.id);
+        localStorage.setItem(`pombuddy-name-${roomId}`, name);
       }
     },
     [roomId, participants]
