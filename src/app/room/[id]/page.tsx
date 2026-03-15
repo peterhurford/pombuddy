@@ -15,6 +15,7 @@ import SessionPlan from '@/components/SessionPlan';
 import PlanProgress from '@/components/PlanProgress';
 import NameEntry from '@/components/NameEntry';
 import ParticipantList from '@/components/ParticipantList';
+import CompactTimer from '@/components/CompactTimer';
 
 function getWorkDuration(mode: string): number {
   return mode === '50/10' ? 50 * 60 : 25 * 60;
@@ -517,7 +518,45 @@ export default function RoomPage() {
       {/* Participants */}
       <ParticipantList participants={participants} currentParticipantId={participantId} />
 
-      {/* Main content area */}
+      {/* Timer — rendered near top of page (outside centered container) */}
+      {room.state === 'working' && preWorkDone && (
+        <div className="w-full max-w-lg flex flex-col items-center mt-4">
+          {activePlan.length > 0 && (
+            <PlanProgress plan={activePlan} currentIndex={planIndex} />
+          )}
+          <TimerDisplay
+            timerStart={room.timer_start}
+            timerDuration={room.timer_duration}
+            onTimerEnd={handleWorkTimerEnd}
+            label="Working"
+            paused={room.paused}
+            pausedRemaining={room.paused_remaining}
+            onPause={handlePause}
+            onResume={handleResume}
+            target={currentTarget ?? plannedTarget}
+          />
+        </div>
+      )}
+
+      {room.state === 'break' && (
+        <div className="w-full max-w-lg flex flex-col items-center mt-4">
+          {activePlan.length > 0 && (
+            <PlanProgress plan={activePlan} currentIndex={planIndex} />
+          )}
+          <TimerDisplay
+            timerStart={room.timer_start}
+            timerDuration={room.timer_duration}
+            onTimerEnd={handleBreakTimerEnd}
+            label="Break"
+            paused={room.paused}
+            pausedRemaining={room.paused_remaining}
+            onPause={handlePause}
+            onResume={handleResume}
+          />
+        </div>
+      )}
+
+      {/* Main content area — vertically centered for non-timer states */}
       <div className="w-full max-w-lg flex-1 flex flex-col items-center justify-center">
         {/* LOBBY */}
         {room.state === 'lobby' && (
@@ -600,51 +639,21 @@ export default function RoomPage() {
 
         {/* WORKING — condensed pre-work for late joiners */}
         {room.state === 'working' && !preWorkDone && (
-          <PreWorkFlow onComplete={handleCondensedPreWorkComplete} condensed prefilledTarget={plannedTarget} />
-        )}
-
-        {/* WORKING — timer */}
-        {room.state === 'working' && preWorkDone && (
-          <>
-            {activePlan.length > 0 && (
-              <PlanProgress plan={activePlan} currentIndex={planIndex} />
-            )}
-            <TimerDisplay
+          <div className="flex flex-col items-center">
+            <CompactTimer
               timerStart={room.timer_start}
               timerDuration={room.timer_duration}
-              onTimerEnd={handleWorkTimerEnd}
               label="Working"
               paused={room.paused}
               pausedRemaining={room.paused_remaining}
-              onPause={handlePause}
-              onResume={handleResume}
-              target={currentTarget ?? plannedTarget}
             />
-          </>
+            <PreWorkFlow onComplete={handleCondensedPreWorkComplete} condensed prefilledTarget={plannedTarget} />
+          </div>
         )}
 
         {/* POST_WORK */}
         {room.state === 'post_work' && (
           <PostWorkFlow onComplete={handlePostWorkComplete} />
-        )}
-
-        {/* BREAK */}
-        {room.state === 'break' && (
-          <>
-            {activePlan.length > 0 && (
-              <PlanProgress plan={activePlan} currentIndex={planIndex} />
-            )}
-            <TimerDisplay
-              timerStart={room.timer_start}
-              timerDuration={room.timer_duration}
-              onTimerEnd={handleBreakTimerEnd}
-              label="Break"
-              paused={room.paused}
-              pausedRemaining={room.paused_remaining}
-              onPause={handlePause}
-              onResume={handleResume}
-            />
-          </>
         )}
       </div>
 

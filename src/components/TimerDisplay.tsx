@@ -29,9 +29,19 @@ export default function TimerDisplay({
   const [hasEnded, setHasEnded] = useState(false);
   const [flashing, setFlashing] = useState(false);
 
+  // Restore default title on unmount
+  useEffect(() => {
+    return () => {
+      document.title = 'Pombuddy - Shared Pomodoro Timer';
+    };
+  }, []);
+
   useEffect(() => {
     if (paused) {
       setRemaining(pausedRemaining ?? 0);
+      const m = String(Math.floor((pausedRemaining ?? 0) / 60)).padStart(2, '0');
+      const s = String((pausedRemaining ?? 0) % 60).padStart(2, '0');
+      document.title = `⏸ ${m}:${s} ${label} - Pombuddy`;
       return;
     }
 
@@ -46,6 +56,10 @@ export default function TimerDisplay({
       const left = Math.max(0, timerDuration - elapsed);
       setRemaining(left);
 
+      const m = String(Math.floor(left / 60)).padStart(2, '0');
+      const s = String(left % 60).padStart(2, '0');
+      document.title = `${m}:${s} ${label} - Pombuddy`;
+
       if (left === 0 && !hasEnded) {
         setHasEnded(true);
         setFlashing(true);
@@ -55,7 +69,7 @@ export default function TimerDisplay({
     }, 200);
 
     return () => clearInterval(interval);
-  }, [timerStart, timerDuration, onTimerEnd, hasEnded, paused, pausedRemaining]);
+  }, [timerStart, timerDuration, onTimerEnd, hasEnded, paused, pausedRemaining, label]);
 
   const minutes = Math.floor(remaining / 60);
   const seconds = remaining % 60;
