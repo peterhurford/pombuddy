@@ -385,6 +385,14 @@ export default function RoomPage() {
     });
   }, [updateRoom]);
 
+  const handleEmojiChange = useCallback(async (emoji: string) => {
+    if (!participantId) return;
+    await supabase
+      .from('participants')
+      .update({ emoji })
+      .eq('id', participantId);
+  }, [participantId]);
+
   const handleWorkTimerEnd = useCallback(async () => {
     if (timerEndedRef.current) return;
     timerEndedRef.current = true;
@@ -577,7 +585,7 @@ export default function RoomPage() {
       )}
 
       {/* Participants */}
-      <ParticipantList participants={participants} currentParticipantId={participantId} />
+      <ParticipantList participants={participants} currentParticipantId={participantId} onEmojiChange={handleEmojiChange} />
 
       {/* Main content area — vertically centered for non-timer states */}
       <div className="w-full max-w-lg flex-1 flex flex-col items-center justify-center">
