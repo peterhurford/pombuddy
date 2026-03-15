@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Room, Cycle, RoomState } from '@/lib/types';
+import { Room, Cycle, Participant, RoomState } from '@/lib/types';
+import { pickEmoji } from '@/lib/emojis';
 import TimerDisplay from '@/components/TimerDisplay';
 import PreWorkFlow from '@/components/PreWorkFlow';
 import PostWorkFlow from '@/components/PostWorkFlow';
@@ -12,6 +13,8 @@ import ShareLink from '@/components/ShareLink';
 import ThemeToggle from '@/components/ThemeToggle';
 import SessionPlan from '@/components/SessionPlan';
 import PlanProgress from '@/components/PlanProgress';
+import NameEntry from '@/components/NameEntry';
+import ParticipantList from '@/components/ParticipantList';
 
 function getWorkDuration(mode: string): number {
   return mode === '50/10' ? 50 * 60 : 25 * 60;
@@ -72,6 +75,11 @@ export default function RoomPage() {
     } catch { return 0; }
   });
   const [sessionComplete, setSessionComplete] = useState(false);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [participantId, setParticipantId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(`pombuddy-participant-${roomId}`) ?? null;
+  });
   const timerEndedRef = useRef(false);
 
   // Request notification permission on mount
@@ -156,6 +164,109 @@ export default function RoomPage() {
     };
   }, [roomId]);
 
+  // Fetch participants + subscribe to realtime changes
+  useEffect(() => {
+    async function fetchParticipants() {
+      const { data } = await supabase
+        .from('participants')
+        .select('*')
+        .eq('room_id', roomId);
+      if (data) setParticipants(data as Participant[]);
+    }
+
+    fetchParticipants();
+
+    const channel = supabase
+      .channel(`participants-${roomId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'participants',
+          filter: `room_id=eq.${roomId}`,
+        },
+        () => {
+          // Re-fetch all participants on any change
+          fetchParticipants();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [roomId]);
+
+  // Heartbeat: update last_seen_at every 30s
+  useEffect(() => {
+    if (!participantId) return;
+
+    const interval = setInterval(() => {
+      supabase
+        .from('participants')
+        .update({ last_seen_at: new Date().toISOString() })
+        .eq('id', participantId)
+        .then();
+    }, 30_000);
+
+    return () => clearInterval(interval);
+  }, [participantId]);
+
+  // Cleanup: best-effort delete on unload
+  useEffect(() => {
+    if (!participantId) return;
+
+    const handleUnload = () => {
+      navigator.sendBeacon?.(
+        // sendBeacon doesn't work with Supabase client, so we do a best-effort delete
+        // The stale detection (opacity dim) handles cases where this fails
+        ''
+      );
+      // Use supabase delete as best-effort
+      supabase
+        .from('participants')
+        .delete()
+        .eq('id', participantId)
+        .then();
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      // Also try to delete on React unmount
+      supabase
+        .from('participants')
+        .delete()
+        .eq('id', participantId)
+        .then();
+    };
+  }, [participantId]);
+
+  // Handle name submission: create participant
+  const handleNameSubmit = useCallback(
+    async (name: string) => {
+      const existingEmojis = participants.map((p) => p.emoji);
+      const emoji = pickEmoji(existingEmojis);
+
+      const { data } = await supabase
+        .from('participants')
+        .insert({
+          room_id: roomId,
+          name,
+          emoji,
+        })
+        .select('id')
+        .single();
+
+      if (data) {
+        setParticipantId(data.id);
+        localStorage.setItem(`pombuddy-participant-${roomId}`, data.id);
+      }
+    },
+    [roomId, participants]
+  );
+
   // Update room state in Supabase
   const updateRoom = useCallback(
     async (updates: Partial<Room>) => {
@@ -196,8 +307,16 @@ export default function RoomPage() {
       // Mark local pre-work as done — do NOT auto-start timer
       setCurrentTarget(answers.target);
       setPreWorkDone(true);
+
+      // Update participant's current_target so others can see it
+      if (participantId) {
+        await supabase
+          .from('participants')
+          .update({ current_target: answers.target })
+          .eq('id', participantId);
+      }
     },
-    [roomId, room?.current_cycle]
+    [roomId, room?.current_cycle, participantId]
   );
 
   const handleStartTimer = useCallback(async () => {
@@ -212,7 +331,7 @@ export default function RoomPage() {
   }, [room?.mode, updateRoom]);
 
   // Late joiner condensed pre-work — no DB write, just local reflection
-  const handleCondensedPreWorkComplete = useCallback((answers: {
+  const handleCondensedPreWorkComplete = useCallback(async (answers: {
     target: string;
     environment_check: string;
     first_step: string;
@@ -221,7 +340,14 @@ export default function RoomPage() {
   }) => {
     setCurrentTarget(answers.target);
     setPreWorkDone(true);
-  }, []);
+
+    if (participantId) {
+      await supabase
+        .from('participants')
+        .update({ current_target: answers.target })
+        .eq('id', participantId);
+    }
+  }, [participantId]);
 
   const handlePause = useCallback(async () => {
     if (!room?.timer_start || !room?.timer_duration) return;
@@ -324,7 +450,15 @@ export default function RoomPage() {
 
     setCurrentCycleId(null);
     setCurrentTarget(null);
-  }, [updateRoom, room?.current_cycle, planIndex, sessionPlan]);
+
+    // Clear participant's current_target for the next cycle
+    if (participantId) {
+      await supabase
+        .from('participants')
+        .update({ current_target: null })
+        .eq('id', participantId);
+    }
+  }, [updateRoom, room?.current_cycle, planIndex, sessionPlan, participantId]);
 
   // Compute the planned target for the current cycle (if plan exists)
   const activePlan = sessionPlan.filter(s => s.trim());
@@ -351,6 +485,11 @@ export default function RoomPage() {
     );
   }
 
+  // Gate: require name entry before showing room
+  if (!participantId) {
+    return <NameEntry onSubmit={handleNameSubmit} />;
+  }
+
   return (
     <main className="min-h-screen flex flex-col items-center p-4 pt-6 sm:pt-8">
       {/* Header */}
@@ -374,6 +513,9 @@ export default function RoomPage() {
           <ThemeToggle />
         </div>
       </div>
+
+      {/* Participants */}
+      <ParticipantList participants={participants} currentParticipantId={participantId} />
 
       {/* Main content area */}
       <div className="w-full max-w-lg flex-1 flex flex-col items-center justify-center">

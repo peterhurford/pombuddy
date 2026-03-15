@@ -14,6 +14,16 @@ export interface Room {
   paused_remaining: number | null;
 }
 
+export interface Participant {
+  id: string;
+  room_id: string;
+  name: string;
+  emoji: string;
+  current_target: string | null;
+  last_seen_at: string;
+  created_at: string;
+}
+
 export interface Cycle {
   id: string;
   room_id: string;
