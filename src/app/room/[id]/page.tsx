@@ -10,6 +10,8 @@ import PostWorkFlow from '@/components/PostWorkFlow';
 import CycleHistory from '@/components/CycleHistory';
 import ShareLink from '@/components/ShareLink';
 import ThemeToggle from '@/components/ThemeToggle';
+import SessionPlan from '@/components/SessionPlan';
+import PlanProgress from '@/components/PlanProgress';
 
 function getWorkDuration(mode: string): number {
   return mode === '50/10' ? 50 * 60 : 25 * 60;
@@ -55,6 +57,21 @@ export default function RoomPage() {
   const [currentCycleId, setCurrentCycleId] = useState<string | null>(null);
   const [currentTarget, setCurrentTarget] = useState<string | null>(null);
   const [preWorkDone, setPreWorkDone] = useState(false);
+  const [sessionPlan, setSessionPlan] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = localStorage.getItem(`pombuddy-plan-${roomId}`);
+      return stored ? (JSON.parse(stored).plan ?? []) : [];
+    } catch { return []; }
+  });
+  const [planIndex, setPlanIndex] = useState(() => {
+    if (typeof window === 'undefined') return 0;
+    try {
+      const stored = localStorage.getItem(`pombuddy-plan-${roomId}`);
+      return stored ? (JSON.parse(stored).planIndex ?? 0) : 0;
+    } catch { return 0; }
+  });
+  const [sessionComplete, setSessionComplete] = useState(false);
   const timerEndedRef = useRef(false);
 
   // Request notification permission on mount
@@ -63,6 +80,16 @@ export default function RoomPage() {
       Notification.requestPermission();
     }
   }, []);
+
+  // Save session plan to localStorage when it changes
+  useEffect(() => {
+    if (sessionPlan.length > 0) {
+      localStorage.setItem(
+        `pombuddy-plan-${roomId}`,
+        JSON.stringify({ plan: sessionPlan, planIndex })
+      );
+    }
+  }, [sessionPlan, planIndex, roomId]);
 
   // Reset preWorkDone when a new cycle starts
   useEffect(() => {
@@ -267,17 +294,43 @@ export default function RoomPage() {
     if (timerEndedRef.current) return;
     timerEndedRef.current = true;
     playNotificationSound();
-    await updateRoom({
-      state: 'pre_work' as RoomState,
-      timer_start: null,
-      timer_duration: null,
-      current_cycle: (room?.current_cycle ?? 1) + 1,
-      paused: false,
-      paused_remaining: null,
-    });
+
+    const nextPlanIndex = planIndex + 1;
+    const planIsActive = sessionPlan.filter(s => s.trim()).length > 0;
+
+    if (planIsActive && nextPlanIndex >= sessionPlan.filter(s => s.trim()).length) {
+      // All planned poms are done
+      setPlanIndex(nextPlanIndex);
+      setSessionComplete(true);
+      await updateRoom({
+        state: 'pre_work' as RoomState,
+        timer_start: null,
+        timer_duration: null,
+        current_cycle: (room?.current_cycle ?? 1) + 1,
+        paused: false,
+        paused_remaining: null,
+      });
+    } else {
+      setPlanIndex(nextPlanIndex);
+      await updateRoom({
+        state: 'pre_work' as RoomState,
+        timer_start: null,
+        timer_duration: null,
+        current_cycle: (room?.current_cycle ?? 1) + 1,
+        paused: false,
+        paused_remaining: null,
+      });
+    }
+
     setCurrentCycleId(null);
     setCurrentTarget(null);
-  }, [updateRoom, room?.current_cycle]);
+  }, [updateRoom, room?.current_cycle, planIndex, sessionPlan]);
+
+  // Compute the planned target for the current cycle (if plan exists)
+  const activePlan = sessionPlan.filter(s => s.trim());
+  const plannedTarget = activePlan.length > 0 && planIndex < activePlan.length
+    ? activePlan[planIndex]
+    : undefined;
 
   if (loading) {
     return (
@@ -326,7 +379,7 @@ export default function RoomPage() {
       <div className="w-full max-w-lg flex-1 flex flex-col items-center justify-center">
         {/* LOBBY */}
         {room.state === 'lobby' && (
-          <div className="text-center animate-fade-in">
+          <div className="text-center animate-fade-in w-full flex flex-col items-center">
             <div className="mb-10">
               <div className="text-8xl font-bold font-mono tracking-tight mb-3">
                 {room.mode === '25/5' ? '25' : '50'}
@@ -340,17 +393,48 @@ export default function RoomPage() {
               onClick={handleStartPreWork}
               className="px-10 py-4 bg-accent hover:bg-accent-light text-white font-semibold rounded-xl transition-all duration-200 text-lg active:scale-[0.98]"
             >
-              Start First Cycle
+              {sessionPlan.filter(s => s.trim()).length > 0
+                ? `Start Session (${sessionPlan.filter(s => s.trim()).length} poms)`
+                : 'Start First Cycle'}
             </button>
+            <SessionPlan plan={sessionPlan.length > 0 ? sessionPlan : ['']} onChange={setSessionPlan} />
+          </div>
+        )}
+
+        {/* SESSION COMPLETE */}
+        {room.state === 'pre_work' && sessionComplete && (
+          <div className="text-center animate-fade-in">
+            <div className="mb-8">
+              <div className="w-20 h-20 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center mx-auto mb-5">
+                <span className="text-3xl">🎉</span>
+              </div>
+              <h3 className="text-2xl font-semibold mb-2">Session complete!</h3>
+              <p className="text-foreground/35 text-sm">
+                You finished all {sessionPlan.filter(s => s.trim()).length} planned poms
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setSessionComplete(false);
+                }}
+                className="px-8 py-3 bg-accent hover:bg-accent-light text-white font-semibold rounded-xl transition-all duration-200 active:scale-[0.98]"
+              >
+                Continue Freestyle
+              </button>
+            </div>
           </div>
         )}
 
         {/* PRE_WORK */}
-        {room.state === 'pre_work' && !preWorkDone && (
-          <PreWorkFlow onComplete={handlePreWorkComplete} />
+        {room.state === 'pre_work' && !preWorkDone && !sessionComplete && (
+          <PreWorkFlow
+            onComplete={handlePreWorkComplete}
+            prefilledTarget={plannedTarget}
+          />
         )}
 
-        {room.state === 'pre_work' && preWorkDone && (
+        {room.state === 'pre_work' && preWorkDone && !sessionComplete && (
           <div className="text-center animate-fade-in">
             <div className="mb-8">
               <div className="w-20 h-20 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center mx-auto mb-5">
@@ -374,22 +458,27 @@ export default function RoomPage() {
 
         {/* WORKING — condensed pre-work for late joiners */}
         {room.state === 'working' && !preWorkDone && (
-          <PreWorkFlow onComplete={handleCondensedPreWorkComplete} condensed />
+          <PreWorkFlow onComplete={handleCondensedPreWorkComplete} condensed prefilledTarget={plannedTarget} />
         )}
 
         {/* WORKING — timer */}
         {room.state === 'working' && preWorkDone && (
-          <TimerDisplay
-            timerStart={room.timer_start}
-            timerDuration={room.timer_duration}
-            onTimerEnd={handleWorkTimerEnd}
-            label="Working"
-            paused={room.paused}
-            pausedRemaining={room.paused_remaining}
-            onPause={handlePause}
-            onResume={handleResume}
-            target={currentTarget}
-          />
+          <>
+            {activePlan.length > 0 && (
+              <PlanProgress plan={activePlan} currentIndex={planIndex} />
+            )}
+            <TimerDisplay
+              timerStart={room.timer_start}
+              timerDuration={room.timer_duration}
+              onTimerEnd={handleWorkTimerEnd}
+              label="Working"
+              paused={room.paused}
+              pausedRemaining={room.paused_remaining}
+              onPause={handlePause}
+              onResume={handleResume}
+              target={currentTarget ?? plannedTarget}
+            />
+          </>
         )}
 
         {/* POST_WORK */}
@@ -399,16 +488,21 @@ export default function RoomPage() {
 
         {/* BREAK */}
         {room.state === 'break' && (
-          <TimerDisplay
-            timerStart={room.timer_start}
-            timerDuration={room.timer_duration}
-            onTimerEnd={handleBreakTimerEnd}
-            label="Break"
-            paused={room.paused}
-            pausedRemaining={room.paused_remaining}
-            onPause={handlePause}
-            onResume={handleResume}
-          />
+          <>
+            {activePlan.length > 0 && (
+              <PlanProgress plan={activePlan} currentIndex={planIndex} />
+            )}
+            <TimerDisplay
+              timerStart={room.timer_start}
+              timerDuration={room.timer_duration}
+              onTimerEnd={handleBreakTimerEnd}
+              label="Break"
+              paused={room.paused}
+              pausedRemaining={room.paused_remaining}
+              onPause={handlePause}
+              onResume={handleResume}
+            />
+          </>
         )}
       </div>
 

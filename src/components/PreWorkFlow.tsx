@@ -25,10 +25,13 @@ interface PreWorkFlowProps {
     failure_risks: string;
   }) => void;
   condensed?: boolean;
+  prefilledTarget?: string;
 }
 
-export default function PreWorkFlow({ onComplete, condensed = false }: PreWorkFlowProps) {
-  const questions = condensed ? CONDENSED_QUESTIONS : PRE_WORK_QUESTIONS;
+export default function PreWorkFlow({ onComplete, condensed = false, prefilledTarget }: PreWorkFlowProps) {
+  // When prefilledTarget is set, skip question 0 (the target question)
+  const allQuestions = condensed ? CONDENSED_QUESTIONS : PRE_WORK_QUESTIONS;
+  const questions = prefilledTarget ? allQuestions.slice(1) : allQuestions;
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<string[]>([]);
 
@@ -39,12 +42,22 @@ export default function PreWorkFlow({ onComplete, condensed = false }: PreWorkFl
     if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else if (condensed) {
+      const target = prefilledTarget ?? newAnswers[0];
+      const firstStep = prefilledTarget ? newAnswers[0] : newAnswers[1];
       onComplete({
-        target: newAnswers[0],
+        target,
         environment_check: '',
-        first_step: newAnswers[1],
+        first_step: firstStep,
         success_criteria: '',
         failure_risks: '',
+      });
+    } else if (prefilledTarget) {
+      onComplete({
+        target: prefilledTarget,
+        environment_check: newAnswers[0],
+        first_step: newAnswers[1],
+        success_criteria: newAnswers[2],
+        failure_risks: newAnswers[3],
       });
     } else {
       onComplete({
@@ -62,6 +75,12 @@ export default function PreWorkFlow({ onComplete, condensed = false }: PreWorkFl
       <h3 className="text-foreground/40 text-sm uppercase tracking-widest mb-8">
         {condensed ? 'Quick Check-In' : 'Pre-Work Reflection'}
       </h3>
+      {prefilledTarget && (
+        <div className="w-full max-w-md mb-6 bg-accent/10 border border-accent/20 rounded-xl px-4 py-3 text-center">
+          <span className="text-foreground/40 text-xs uppercase tracking-wider">This cycle&apos;s target</span>
+          <p className="text-foreground/80 text-sm mt-1">{prefilledTarget}</p>
+        </div>
+      )}
       <QuestionCard
         key={currentQuestion}
         question={questions[currentQuestion]}
