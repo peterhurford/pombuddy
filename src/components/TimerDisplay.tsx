@@ -89,18 +89,6 @@ export default function TimerDisplay({
         <div className="fixed inset-0 z-50 pointer-events-none animate-timer-flash bg-accent/20" />
       )}
 
-      {/* Target display */}
-      {target && (
-        <div className="mb-6 text-center max-w-md">
-          <p
-            className="text-foreground/50 text-sm leading-relaxed line-clamp-2 cursor-default"
-            title={target}
-          >
-            {target}
-          </p>
-        </div>
-      )}
-
       <div className={`relative w-80 h-80 sm:w-96 sm:h-96 ${paused ? '' : 'animate-pulse-glow'}`}>
         <svg className="w-full h-full -rotate-90" viewBox="0 0 320 320">
           {/* Background track */}
@@ -147,6 +135,18 @@ export default function TimerDisplay({
       >
         {paused ? 'Resume' : 'Pause'}
       </button>
+
+      {/* Target display — below circle so timer sits high */}
+      {target && (
+        <div className="mt-6 text-center max-w-md">
+          <p
+            className="text-foreground/50 text-sm leading-relaxed line-clamp-2 cursor-default"
+            title={target}
+          >
+            {target}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

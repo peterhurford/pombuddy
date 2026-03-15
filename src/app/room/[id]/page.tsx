@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Room, Cycle, Participant, RoomState } from '@/lib/types';
 import { pickEmoji } from '@/lib/emojis';
-import TimerDisplay from '@/components/TimerDisplay';
+import CompactTimer from '@/components/CompactTimer';
 import PreWorkFlow from '@/components/PreWorkFlow';
 import PostWorkFlow from '@/components/PostWorkFlow';
 import CycleHistory from '@/components/CycleHistory';
@@ -15,7 +15,6 @@ import SessionPlan from '@/components/SessionPlan';
 import PlanProgress from '@/components/PlanProgress';
 import NameEntry from '@/components/NameEntry';
 import ParticipantList from '@/components/ParticipantList';
-import CompactTimer from '@/components/CompactTimer';
 
 function getWorkDuration(mode: string): number {
   return mode === '50/10' ? 50 * 60 : 25 * 60;
@@ -494,7 +493,7 @@ export default function RoomPage() {
   return (
     <main className="min-h-screen flex flex-col items-center p-4 pt-6 sm:pt-8">
       {/* Header */}
-      <div className="w-full max-w-lg flex items-center justify-between mb-10">
+      <div className="w-full max-w-lg flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
             <span className="mr-1.5">🍅</span><span className="text-accent">Pom</span>buddy
@@ -515,16 +514,13 @@ export default function RoomPage() {
         </div>
       </div>
 
-      {/* Participants */}
-      <ParticipantList participants={participants} currentParticipantId={participantId} />
-
       {/* Timer — rendered near top of page (outside centered container) */}
-      {room.state === 'working' && preWorkDone && (
+      {room.state === 'working' && (
         <div className="w-full max-w-lg flex flex-col items-center mt-4">
-          {activePlan.length > 0 && (
+          {activePlan.length > 0 && preWorkDone && (
             <PlanProgress plan={activePlan} currentIndex={planIndex} />
           )}
-          <TimerDisplay
+          <CompactTimer
             timerStart={room.timer_start}
             timerDuration={room.timer_duration}
             onTimerEnd={handleWorkTimerEnd}
@@ -533,8 +529,13 @@ export default function RoomPage() {
             pausedRemaining={room.paused_remaining}
             onPause={handlePause}
             onResume={handleResume}
-            target={currentTarget ?? plannedTarget}
+            target={preWorkDone ? (currentTarget ?? plannedTarget) : undefined}
           />
+          {!preWorkDone && (
+            <div className="w-full mt-6">
+              <PreWorkFlow onComplete={handleCondensedPreWorkComplete} condensed prefilledTarget={plannedTarget} />
+            </div>
+          )}
         </div>
       )}
 
@@ -543,7 +544,7 @@ export default function RoomPage() {
           {activePlan.length > 0 && (
             <PlanProgress plan={activePlan} currentIndex={planIndex} />
           )}
-          <TimerDisplay
+          <CompactTimer
             timerStart={room.timer_start}
             timerDuration={room.timer_duration}
             onTimerEnd={handleBreakTimerEnd}
@@ -555,6 +556,9 @@ export default function RoomPage() {
           />
         </div>
       )}
+
+      {/* Participants */}
+      <ParticipantList participants={participants} currentParticipantId={participantId} />
 
       {/* Main content area — vertically centered for non-timer states */}
       <div className="w-full max-w-lg flex-1 flex flex-col items-center justify-center">
@@ -634,20 +638,6 @@ export default function RoomPage() {
             >
               Start Timer
             </button>
-          </div>
-        )}
-
-        {/* WORKING — condensed pre-work for late joiners */}
-        {room.state === 'working' && !preWorkDone && (
-          <div className="flex flex-col items-center">
-            <CompactTimer
-              timerStart={room.timer_start}
-              timerDuration={room.timer_duration}
-              label="Working"
-              paused={room.paused}
-              pausedRemaining={room.paused_remaining}
-            />
-            <PreWorkFlow onComplete={handleCondensedPreWorkComplete} condensed prefilledTarget={plannedTarget} />
           </div>
         )}
 
