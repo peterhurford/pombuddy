@@ -372,6 +372,19 @@ export default function RoomPage() {
     });
   }, [room?.paused_remaining, updateRoom]);
 
+  const handleModeChange = useCallback(async (newMode: string) => {
+    await updateRoom({ mode: newMode as Room['mode'] });
+  }, [updateRoom]);
+
+  const handleSetTime = useCallback(async (seconds: number) => {
+    await updateRoom({
+      timer_start: new Date().toISOString(),
+      timer_duration: seconds,
+      paused: false,
+      paused_remaining: null,
+    });
+  }, [updateRoom]);
+
   const handleWorkTimerEnd = useCallback(async () => {
     if (timerEndedRef.current) return;
     timerEndedRef.current = true;
@@ -530,6 +543,9 @@ export default function RoomPage() {
             onPause={handlePause}
             onResume={handleResume}
             target={preWorkDone ? (currentTarget ?? plannedTarget) : undefined}
+            mode={room.mode}
+            onModeChange={handleModeChange}
+            onSetTime={handleSetTime}
           />
           {!preWorkDone && (
             <div className="w-full mt-6">
@@ -553,6 +569,9 @@ export default function RoomPage() {
             pausedRemaining={room.paused_remaining}
             onPause={handlePause}
             onResume={handleResume}
+            mode={room.mode}
+            onModeChange={handleModeChange}
+            onSetTime={handleSetTime}
           />
         </div>
       )}
