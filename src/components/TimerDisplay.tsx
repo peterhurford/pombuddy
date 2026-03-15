@@ -91,8 +91,11 @@ export default function TimerDisplay({
 
       {/* Target display */}
       {target && (
-        <div className="mb-6 text-center max-w-sm">
-          <p className="text-foreground/50 text-sm leading-relaxed">
+        <div className="mb-6 text-center max-w-md">
+          <p
+            className="text-foreground/50 text-sm leading-relaxed line-clamp-2 cursor-default"
+            title={target}
+          >
             {target}
           </p>
         </div>
