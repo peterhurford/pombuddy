@@ -17,7 +17,7 @@ interface CompactTimerProps {
   onSetTime?: (seconds: number) => void;
 }
 
-const TIME_PRESETS = [1, 5, 10, 15, 20, 25, 30, 40, 50];
+const TIME_PRESETS = [1, 3, 5, 10, 15, 20, 25, 30, 40, 50];
 
 export default function CompactTimer({
   timerStart,
@@ -145,19 +145,36 @@ export default function CompactTimer({
           {onSetTime && (
             <div>
               <label className="text-foreground/40 text-xs uppercase tracking-wider block mb-2">Set time</label>
-              <select
-                value=""
-                onChange={(e) => {
-                  const mins = parseInt(e.target.value, 10);
-                  if (!isNaN(mins)) onSetTime(mins * 60);
-                }}
-                className="w-full py-1.5 px-3 rounded-lg text-sm bg-background border border-card-border text-foreground/70 cursor-pointer"
-              >
-                <option value="" disabled>Select minutes...</option>
-                {TIME_PRESETS.map((m) => (
-                  <option key={m} value={m}>{m} min</option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const newRemaining = Math.max(60, remaining - 60);
+                    onSetTime(newRemaining);
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-sm font-bold border border-card-border text-foreground/50 hover:text-foreground/80 hover:border-foreground/20 transition-all duration-200"
+                >
+                  −
+                </button>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const mins = parseInt(e.target.value, 10);
+                    if (!isNaN(mins)) onSetTime(mins * 60);
+                  }}
+                  className="flex-1 py-1.5 px-3 rounded-lg text-sm bg-background border border-card-border text-foreground/70 cursor-pointer"
+                >
+                  <option value="" disabled>Select minutes...</option>
+                  {TIME_PRESETS.map((m) => (
+                    <option key={m} value={m}>{m} min</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => onSetTime(remaining + 60)}
+                  className="px-3 py-1.5 rounded-lg text-sm font-bold border border-card-border text-foreground/50 hover:text-foreground/80 hover:border-foreground/20 transition-all duration-200"
+                >
+                  +
+                </button>
+              </div>
             </div>
           )}
         </div>
