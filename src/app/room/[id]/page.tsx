@@ -12,7 +12,6 @@ import CycleHistory from '@/components/CycleHistory';
 import ShareLink from '@/components/ShareLink';
 import ThemeToggle from '@/components/ThemeToggle';
 import SessionPlan from '@/components/SessionPlan';
-import PlanProgress from '@/components/PlanProgress';
 import NameEntry from '@/components/NameEntry';
 import ParticipantList from '@/components/ParticipantList';
 
@@ -60,20 +59,6 @@ export default function RoomPage() {
   const [currentCycleId, setCurrentCycleId] = useState<string | null>(null);
   const [currentTarget, setCurrentTarget] = useState<string | null>(null);
   const [preWorkDone, setPreWorkDone] = useState(false);
-  const [sessionPlan, setSessionPlan] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const stored = localStorage.getItem(`pombuddy-plan-${roomId}`);
-      return stored ? (JSON.parse(stored).plan ?? []) : [];
-    } catch { return []; }
-  });
-  const [planIndex, setPlanIndex] = useState(() => {
-    if (typeof window === 'undefined') return 0;
-    try {
-      const stored = localStorage.getItem(`pombuddy-plan-${roomId}`);
-      return stored ? (JSON.parse(stored).planIndex ?? 0) : 0;
-    } catch { return 0; }
-  });
   const [sessionComplete, setSessionComplete] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [participantId, setParticipantId] = useState<string | null>(() => {
@@ -81,6 +66,42 @@ export default function RoomPage() {
     return localStorage.getItem(`pombuddy-participant-${roomId}`) ?? null;
   });
   const timerEndedRef = useRef(false);
+  const planDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Session plan is per-participant, stored in Supabase
+  const currentParticipant = participants.find(p => p.id === participantId);
+  const sessionPlan: string[] = currentParticipant?.session_plan ?? [];
+  const planCompleted: boolean[] = currentParticipant?.plan_completed ?? [];
+  const otherParticipants = participants.filter(p => p.id !== participantId);
+
+  const setSessionPlan = useCallback(
+    (plan: string[]) => {
+      if (!participantId) return;
+      // Optimistic local update
+      setParticipants(prev => prev.map(p =>
+        p.id === participantId ? { ...p, session_plan: plan } : p
+      ));
+      if (planDebounceRef.current) clearTimeout(planDebounceRef.current);
+      planDebounceRef.current = setTimeout(() => {
+        supabase.from('participants').update({ session_plan: plan }).eq('id', participantId).then();
+      }, 500);
+    },
+    [participantId]
+  );
+
+  const handleTogglePlanItem = useCallback(
+    (index: number) => {
+      if (!participantId) return;
+      const updated = [...planCompleted];
+      while (updated.length <= index) updated.push(false);
+      updated[index] = !updated[index];
+      setParticipants(prev => prev.map(p =>
+        p.id === participantId ? { ...p, plan_completed: updated } : p
+      ));
+      supabase.from('participants').update({ plan_completed: updated }).eq('id', participantId).then();
+    },
+    [planCompleted, participantId]
+  );
 
   // Request notification permission on mount
   useEffect(() => {
@@ -88,16 +109,6 @@ export default function RoomPage() {
       Notification.requestPermission();
     }
   }, []);
-
-  // Save session plan to localStorage when it changes
-  useEffect(() => {
-    if (sessionPlan.length > 0) {
-      localStorage.setItem(
-        `pombuddy-plan-${roomId}`,
-        JSON.stringify({ plan: sessionPlan, planIndex })
-      );
-    }
-  }, [sessionPlan, planIndex, roomId]);
 
   // Reset preWorkDone when a new cycle starts
   useEffect(() => {
@@ -457,50 +468,47 @@ export default function RoomPage() {
     timerEndedRef.current = true;
     playNotificationSound();
 
-    const nextPlanIndex = planIndex + 1;
-    const planIsActive = sessionPlan.filter(s => s.trim()).length > 0;
-
-    if (planIsActive && nextPlanIndex >= sessionPlan.filter(s => s.trim()).length) {
-      // All planned poms are done
-      setPlanIndex(nextPlanIndex);
+    // Check if all of this participant's plan items are completed
+    const activePlanItems = sessionPlan.filter(s => s.trim());
+    if (activePlanItems.length > 0 && activePlanItems.every((_, i) => planCompleted[i])) {
       setSessionComplete(true);
-      await updateRoom({
-        state: 'pre_work' as RoomState,
-        timer_start: null,
-        timer_duration: null,
-        current_cycle: (room?.current_cycle ?? 1) + 1,
-        paused: false,
-        paused_remaining: null,
-      });
-    } else {
-      setPlanIndex(nextPlanIndex);
-      await updateRoom({
-        state: 'pre_work' as RoomState,
-        timer_start: null,
-        timer_duration: null,
-        current_cycle: (room?.current_cycle ?? 1) + 1,
-        paused: false,
-        paused_remaining: null,
-      });
     }
+
+    await updateRoom({
+      state: 'pre_work' as RoomState,
+      timer_start: null,
+      timer_duration: null,
+      current_cycle: (room?.current_cycle ?? 1) + 1,
+      paused: false,
+      paused_remaining: null,
+    });
 
     setCurrentCycleId(null);
     setCurrentTarget(null);
 
-    // Clear participant's current_target for the next cycle
     if (participantId) {
       await supabase
         .from('participants')
         .update({ current_target: null })
         .eq('id', participantId);
     }
-  }, [updateRoom, room?.current_cycle, planIndex, sessionPlan, participantId]);
+  }, [updateRoom, room?.current_cycle, sessionPlan, planCompleted, participantId]);
 
   // Compute the planned target for the current cycle (if plan exists)
   const activePlan = sessionPlan.filter(s => s.trim());
-  const plannedTarget = activePlan.length > 0 && planIndex < activePlan.length
-    ? activePlan[planIndex]
+  const currentPlanIndex = activePlan.findIndex((_, i) => !planCompleted[i]);
+  const plannedTarget = activePlan.length > 0 && currentPlanIndex >= 0
+    ? activePlan[currentPlanIndex]
     : undefined;
+
+  // Other participants' plans (read-only)
+  const otherPlans = otherParticipants
+    .filter(p => (p.session_plan ?? []).some((s: string) => s.trim()))
+    .map(p => ({
+      name: p.name,
+      plan: p.session_plan ?? [],
+      completed: p.plan_completed ?? [],
+    }));
 
   if (loading) {
     return (
@@ -554,8 +562,11 @@ export default function RoomPage() {
       {room.state === 'working' && (
         <div className="w-full max-w-lg flex flex-col items-center mt-4">
           {activePlan.length > 0 && preWorkDone && (
-            <PlanProgress plan={activePlan} currentIndex={planIndex} />
+            <SessionPlan plan={sessionPlan.length > 0 ? sessionPlan : ['']} onChange={setSessionPlan} completed={planCompleted} onToggle={handleTogglePlanItem} currentIndex={currentPlanIndex} compact />
           )}
+          {preWorkDone && otherPlans.map(op => (
+            <SessionPlan key={op.name} plan={op.plan} onChange={() => {}} completed={op.completed} readOnly ownerName={op.name} compact />
+          ))}
           <CompactTimer
             timerStart={room.timer_start}
             timerDuration={room.timer_duration}
@@ -581,8 +592,11 @@ export default function RoomPage() {
       {room.state === 'break' && (
         <div className="w-full max-w-lg flex flex-col items-center mt-4">
           {activePlan.length > 0 && (
-            <PlanProgress plan={activePlan} currentIndex={planIndex} />
+            <SessionPlan plan={sessionPlan.length > 0 ? sessionPlan : ['']} onChange={setSessionPlan} completed={planCompleted} onToggle={handleTogglePlanItem} currentIndex={currentPlanIndex} compact />
           )}
+          {otherPlans.map(op => (
+            <SessionPlan key={op.name} plan={op.plan} onChange={() => {}} completed={op.completed} readOnly ownerName={op.name} compact />
+          ))}
           <CompactTimer
             timerStart={room.timer_start}
             timerDuration={room.timer_duration}
@@ -624,20 +638,33 @@ export default function RoomPage() {
                 ? `Start Session (${sessionPlan.filter(s => s.trim()).length} poms)`
                 : 'Start First Cycle'}
             </button>
-            <SessionPlan plan={sessionPlan.length > 0 ? sessionPlan : ['']} onChange={setSessionPlan} />
+            <SessionPlan
+              plan={sessionPlan.length > 0 ? sessionPlan : ['']}
+              onChange={setSessionPlan}
+            />
+            {otherPlans.map(op => (
+              <SessionPlan
+                key={op.name}
+                plan={op.plan}
+                onChange={() => {}}
+                completed={op.completed}
+                readOnly
+                ownerName={op.name}
+              />
+            ))}
           </div>
         )}
 
         {/* SESSION COMPLETE */}
         {room.state === 'pre_work' && sessionComplete && (
-          <div className="text-center animate-fade-in">
+          <div className="text-center animate-fade-in w-full flex flex-col items-center">
             <div className="mb-8">
               <div className="w-20 h-20 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center mx-auto mb-5">
                 <span className="text-3xl">🎉</span>
               </div>
               <h3 className="text-2xl font-semibold mb-2">Session complete!</h3>
               <p className="text-foreground/35 text-sm">
-                You finished all {sessionPlan.filter(s => s.trim()).length} planned poms
+                You finished all {activePlan.length} planned poms
               </p>
             </div>
             <div className="flex gap-3">
@@ -650,19 +677,45 @@ export default function RoomPage() {
                 Continue Freestyle
               </button>
             </div>
+            {activePlan.length > 0 && (
+              <SessionPlan
+                plan={sessionPlan.length > 0 ? sessionPlan : ['']}
+                onChange={setSessionPlan}
+                completed={planCompleted}
+                onToggle={handleTogglePlanItem}
+                currentIndex={currentPlanIndex}
+              />
+            )}
+            {otherPlans.map(op => (
+              <SessionPlan key={op.name} plan={op.plan} onChange={() => {}} completed={op.completed} readOnly ownerName={op.name} />
+            ))}
           </div>
         )}
 
         {/* PRE_WORK */}
         {room.state === 'pre_work' && !preWorkDone && !sessionComplete && (
-          <PreWorkFlow
-            onComplete={handlePreWorkComplete}
-            prefilledTarget={plannedTarget}
-          />
+          <div className="w-full flex flex-col items-center">
+            <PreWorkFlow
+              onComplete={handlePreWorkComplete}
+              prefilledTarget={plannedTarget}
+            />
+            {activePlan.length > 0 && (
+              <SessionPlan
+                plan={sessionPlan.length > 0 ? sessionPlan : ['']}
+                onChange={setSessionPlan}
+                completed={planCompleted}
+                onToggle={handleTogglePlanItem}
+                currentIndex={currentPlanIndex}
+              />
+            )}
+            {otherPlans.map(op => (
+              <SessionPlan key={op.name} plan={op.plan} onChange={() => {}} completed={op.completed} readOnly ownerName={op.name} />
+            ))}
+          </div>
         )}
 
         {room.state === 'pre_work' && preWorkDone && !sessionComplete && (
-          <div className="text-center animate-fade-in">
+          <div className="text-center animate-fade-in w-full flex flex-col items-center">
             <div className="mb-8">
               <div className="w-20 h-20 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center mx-auto mb-5">
                 <svg className="w-9 h-9 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -680,12 +733,38 @@ export default function RoomPage() {
             >
               Start Timer
             </button>
+            {activePlan.length > 0 && (
+              <SessionPlan
+                plan={sessionPlan.length > 0 ? sessionPlan : ['']}
+                onChange={setSessionPlan}
+                completed={planCompleted}
+                onToggle={handleTogglePlanItem}
+                currentIndex={currentPlanIndex}
+              />
+            )}
+            {otherPlans.map(op => (
+              <SessionPlan key={op.name} plan={op.plan} onChange={() => {}} completed={op.completed} readOnly ownerName={op.name} />
+            ))}
           </div>
         )}
 
         {/* POST_WORK */}
         {room.state === 'post_work' && (
-          <PostWorkFlow onComplete={handlePostWorkComplete} />
+          <div className="w-full flex flex-col items-center">
+            <PostWorkFlow onComplete={handlePostWorkComplete} />
+            {activePlan.length > 0 && (
+              <SessionPlan
+                plan={sessionPlan.length > 0 ? sessionPlan : ['']}
+                onChange={setSessionPlan}
+                completed={planCompleted}
+                onToggle={handleTogglePlanItem}
+                currentIndex={currentPlanIndex}
+              />
+            )}
+            {otherPlans.map(op => (
+              <SessionPlan key={op.name} plan={op.plan} onChange={() => {}} completed={op.completed} readOnly ownerName={op.name} />
+            ))}
+          </div>
         )}
       </div>
 

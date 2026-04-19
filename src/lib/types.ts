@@ -20,6 +20,8 @@ export interface Participant {
   name: string;
   emoji: string;
   current_target: string | null;
+  session_plan: string[];
+  plan_completed: boolean[];
   last_seen_at: string;
   created_at: string;
 }
